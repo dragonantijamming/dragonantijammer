@@ -1,0 +1,186 @@
+Version control, i.e. keeping track of how software changes over time, is an important aspect of software. In
+fact, version control has gone beyond "helpful" and into "mandatory" territory. Git is perhaps the most common
+version control tool, with other options including subversion (SVN), mercurial, and more. Let's stick with git. 
+
+At its core, git is software which manages several versions of files and projects, allowing you to return to a
+previous state, or "tag" the software at a point with a version number, and even release the software as a tar
+ball. Websites such as Github and Bitbucket allow you to manage a remote repository, forking other peoples repos
+and managing your own from online or locally.
+
+All that being said, let's look at good git practices. After all, it's not every day you have to work with
+software that has the ability to "undo" months or years of work if used (very) uncorrectly. 
+
+Git is used to do the following core operations:
+	Create a new repo, or clone a repo from a remote source
+	Stage changes to files and commit them with a message, return to previous commits
+	Tag a state of the project, return to previous tags
+	Review differences between versions of files
+	Push changes to a remote repo, pull changes from a remote repo
+	Make a new branch and visit other branches of the repo
+	Merge branches, tags, or remote repositories with the local repo
+	Release software as a tar ball
+
+=========================
+==== GETTING STARTED ====
+=========================
+If you have a new software project, go to the root directory of the project and use
+	$ git init
+This will create a .git folder which will be used to manage everything. Git commands can now be used in any
+subdirectory of the project root. No other changes will be seen. If there's no .git folder in any root dir, a
+git command will simply complain. To add your project to github, make a new empty repository on github, commit
+your latest changes, and add the github repository as the remote "origin" (even though it's not actually the
+origin). 
+	$ git remote add origin https:// ...
+And push
+	$ git push origin master
+More on this later. 
+
+If you want to clone a repository from e.g. github, go to somewhere you want the repo to be and use
+	$ git clone https://www...
+Or ssh:// if you use ssh. A directory for the project should now be created. In this case, the location you
+pulled the repository from becomes the "origin" for the project. You can then use commands such as
+	$ git pull origin master
+To pull in changes from the [master] branch of the origin, the remote repo you cloned. 
+
+If the repository you cloned was, itself, a fork of another, it is said to be "downstream", and the upstream is
+the repository that was forked from. So if you're on Github and you fork a repo, then clone your fork to your 
+local computer, your github fork becomes the origin, and the original repo becomes the upstream. 
+
+========================
+==== MAKING CHANGES ====
+========================
+Your project always consists of the files that are local on your computer. However, git stores the state of the
+project when you -commit- your changes, so you can revisit that point later. When you commit, only the files that
+you specify to save, files that have been -staged-, will actually be stored. When you commit, you commit to the
+branch you're working on, not anything else. 
+
+When you commit your changes, every file that was recorded becomes -tracked-. You can review the changes to 
+tracked files using git diff, relative to the last commit. 
+
+Staging files is done with
+	$ git add filename.txt
+For a single file, or
+	$ git add --all
+For all local changes. You could similarly use
+	$ git add .
+For all files in the local directory (not sure about subdirectories). Do this before you commit, especially when
+you've created new files. Having staged and unstaged changes is a powerful tool for git, because it allows you
+to, say, revert to a previous commit, with all activity after that being unstaged changes that you can erase. 
+To discard all you local staged and unstaged changes i.e. to revert to the last commit, use
+	$ git reset --hard HEAD 
+Note: The HEAD is an important aspect of git, which we'll get to later. You can do this for only a particular
+file as well:
+	$ git reset --hard HEAD filename.txt
+And going all in, you can revert to a previous commit (by producing a new commit which changes everything back)
+using
+	$ git revert mycommit
+And this way no work is lost if you decide you didn't want to totally revert all the changes. 
+
+If a file was tracked, you can use git diff, as I mentioned before, to see how it has changed since the last 
+commit. 
+	$ git diff filename.txt
+More generally, you can look at the -status- of the working directory, which means the status of all files that
+have changed in your directory. 
+	$ git status
+You can also look at the staged changes in the repository with git diff:
+	$ git diff --staged
+And finally you can commit your changes as a new commit in your git with
+	$ git commit
+Which should include a message, usually:
+	$ git commit -m "Brief commit summary..."
+Quotes included. You can commit all local changes to all tracked files using
+	$ git commit -a
+
+It is very good practice to commit often. But do not commit unfinished code, that's bad practice. Commit every
+chance you have a logical "break point" where some part of the code is written. If you make a mistake with the 
+commit, you can amend it. For example, if you noticed a typo, and quickly change it, and don't want to make a new
+commit just for that typo. 
+	$ git commit --amend
+Along with any other options you would use. 
+
+The commits you make are stored in a "log", which can be accessed with:
+	$ git log
+For the whole log, or
+	$ git log -N
+Where N is a number indicating the number of commits to show. You'll see the last N commits in the log. You can
+show changes for a specific file over the different commits using the log, with
+	$ git log -p filename.txt
+Or to see the entire history of the file,
+	$ git log --follow -p -- filename.txt
+Note the two dashes in between the p flag and the filename. You can see who changed what and when (particularly 
+helpful when working in teams) using git blame.
+	$ git blame filename.txt
+It might seem harsh, but blaming is an essential part of working in teams. 
+
+A project isn't all about adding files and changes however, sometimes you need to delete a file or clear the
+unstaged or even the staged changes. Maybe you only care about the files that are being tracked, and you want
+to delete the ones left over. 
+
+If you want to roll back all the unstaged changes, you would checkout the recent commit (wherever you are) with
+	$ git checkout -- .
+Note that the "--" is used to clear up ambiguities in the commands. For example, if you for some reason had a
+file named "-f", you couldn't do much to it with git. So you would have to separate it with the double dash.
+Similarly, you can clean the changes made so far with git clean. You can review the cleaning with:
+	$ git clean -nd
+And you can completely clean out any unstaged and staged changes with
+	$ git clean --hard
+Then you can remove files and directories that are not currently tracked with
+	$ git clean -fd
+But this specifically means removal from your local directory. 
+
+When you delete a file, a copy of it will still be expected by git, and the old version will be kept when it
+isn't staged. So you need to stage its remove with:
+	$ git rm filename.txt
+If you only want to remove the file from staging and tracking, you can do that with
+	$ git rm --cached filename.txt
+And you'll be set. If you change a file's name, you have to stage a move for git:
+	$ git mv oldname.txt newname.txt
+And this way git will know that it's the same file, where it is, and that its name has changed. 
+
+Finally, there is a way to list all the files currently being tracked, with ls-tree. 
+	$ git ls-tree -r HEAD --name-only
+Which will list the files tracked for HEAD, and
+	$ git ls-tree -r master --name-only
+Specifically to see files tracked for master. 
+
+===========================
+==== BRANCHES AND TAGS ====
+===========================
+Branches and tags make the git go round. The master branch is your "official" branch in your repo, the one which
+has up to date, preferably working code. You can make new branches, each with its own commits and everything,
+and jump around to different branches, merging things together. Each branch should be used to implement a new
+feature, or make sweeping changes to files. Once all the changes are done, you can (carefully) merge those
+changes into the master branch. 
+
+Using
+	$ git branch
+Will display the branches you have, and the one you're using will have an asterix (*) next to it. You can make
+a new branch with:
+	$ git branch branchname
+And you can check out a branch (use that branch in your local directory) with:
+	$ git checkout branchname
+Better yet, you can create a new branch and check it out with
+	$ git checkout -b branchname
+And when you're done with a branch, you can delete it with:
+	$ git branch -d branchname
+
+Merging two branches together is one of the most important parts of using git. Before we get into that, however,
+I'd like to take a second and talk about HEAD. HEAD is a pointer to the most recent commit in a repository. 
+Typically, that means the most recent commit to the working branch. The most recent commit in any branch in your
+repo is called the -tip- of the branch, so the HEAD often points to the tip of the branch you're working in. If
+you want to get to the most "official" version of your project, the HEAD should point to the tip of master. 
+
+When you've made changes to a branch relative to the master branch, you'll probably want to merge those changes
+into master. To do that, it's good practice to first merge master into the branch, then merge the branch into
+master. Effectively, you're changing your branch first, using it to resolve any issues with the merge, then
+using that to merge effectively into the master branch. 
+
+From the branch:
+	$ git merge master
+Then resolve any issues and try merging again. Then from master:
+	$ git merge branchname
+Which shouldn't have any issues. 
+
+
+
+

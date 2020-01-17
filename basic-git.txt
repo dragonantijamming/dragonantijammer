@@ -1,0 +1,286 @@
+Summary:
+	-Make a new repo-
+	git init		Initialize the local directory as a git repository
+	git clone https://...	Clone a repository
+	git pull origin master	Update a repository
+	git remote add origin https://...	Set up a remote repository (e.g. a github repo) to be updated
+	git remote set-url origin https://...	Change the URL of the remote repo
+	NOTE: "origin" can be replaced, e.g. by "upstream" or "my-fork" etc
+	-Where am I-
+	git log			Show all commits or e.g. the last five with -5, with changes with -p
+	git log -p myfile	Show the log for a specific file
+	git log --follow -p -- myfile	Show the entire history of a file (myfile)
+	git describe	Show current tag, sometimes with --tags
+	git show		Show the current commit
+	git tag			List the tags
+	git branch		List the branches, highlights the branch you're in
+	git status		Give information on tracked files
+	git diff		Give information on what has changed, details of the changes in file
+				No arguments means unstaged changes
+	git diff --staged	Give information on staged changes
+	git checkout master	Get back to the tip of Master
+	-Work with branches-
+	git branch myname	Creates a branch called myname 
+	git branch -b myname	Creates a branch and checks it out
+	git branch -d myname	Delete a branch, if it has been merged
+	git branch -D myname	Delete a branch, no matter what
+	-Commits and pulls-
+	git add myfile.txt		Add a file to the commit queue
+	git add --all			Add all files to the commit queue
+	git commit -m "Hello"		Commit with message "Hello"
+	git commit -a -m "Hello"	Commit all changed files (add them to the queue)
+	git checkout -- .		Clear unstaged changes
+	git clean -nd			Preview changes when cleaning
+	git clean --hard		Clean all staged and unstaged changes
+	git clean -fd			Remove untracked files and directories
+	git rm myfile.txt		Stage a file removal
+	git rm --cached myfile.txt	Remove a file from the staging, untrack
+	git mv oldname.txt newname.txt	Rename a file so that git knows where it is
+	-Visual GIT-
+	gitk
+	gitk filename
+
+Using github is an essential tool for version tracking, and working with open-source projects. It's very common
+in the developer world.
+
+It works in repositories, where people commit changes through pull requests. Repositories can be
+forked so that they can be changed without affecting the original/master version.
+
+To interface on your computer with github, you use Git. Here's how to set it up:
+This stuff sets up your name and settings:
+	git config --global user.name "JOE BLACK"
+	git config --global user.email "joe.black@gmail.com"
+
+To actually see your repos and make changes and pull requests, you can either work over:
+	HTTPS, or
+	SSH
+When working with SSH, you need a key on your computer. Working with HTTPS is the recommended method
+now. 
+
+The important commands in Git are:
+	git clone https://......			download a new repository
+	git fetch ...						sync a repo
+	git merge ...						merge remote branches with your own
+	git pull ...						sync and merge a repository
+	git push ...						push new branches to a repo
+
+Each of these is automatically going to perform its function in whatever repository you are currently
+in. The whole command will perform the given action (clone, fetch, pull, push) locally on your computer. 
+Other useful commands are:
+	git remote -v ...
+	git remote add upstream ...
+
+Git uses the root directory that you are in to act on commands. The root directories have .git files and such
+that make it so that it knows where you are. 
+For example, if you try a git command outside of a git repository, you'll get an error:
+	fatal: Not a git repository (or any parent up to mount point /home/user)
+	Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+Notice how git tried to look all the way up the file hierarchy for the git root but didn't find it. 
+
+As an example, let's say I've found a good repo from github that I want to clone onto my local system.
+For the time being, the repository is called booksmart, and is located at https://www.github.com/bob/booksmart.
+
+To first get the repo, I call:
+	$ git clone https://www.github.com/bob/booksmart
+And then git will take care of it, placing a directory booksmart/ wherever I called the command. Going into
+this directory, I can start working with git. A few days pass before I decide to head into the repo,
+but I'm worried that I missed some updates to the code. I enter:
+	$ git pull origin master
+This will make sure that my branch is totally up to date. The 'origin' part represents the place
+that this repo came from originally, and the 'master' refers to the master branch. 
+
+Now I'm concerned, because there could be another branch on my system. (How that could happen
+without me knowing is beside the point.. ) You can avoid any confusion with:
+	$ git branch
+Now I'm concerned because I'm working with this repository and I want to make some drastic
+changes to the code, without affecting my master branch. So I make a new one:
+	$ git branch bookdumb
+Now if I run git branch I should see all my branches listed. To actually _use_ a branch that I've made,
+I check it out, using the command checkout:
+	$ git checkout bookdumb
+But maybe I wanted to simply make the branch, then check it out. Then I use the -b flag:
+	$ git check -b bookdumb
+In this way, I could cut down the two commands into one. But now, it's time to get rid of that branch,
+because it was no good in the end. I can merge, or simply delete the branch like this:
+	$ git branch -D bookdumb
+This will _force_ the deletion of the branch, regardless of whether I have merged it or not. If I want
+to avoid destroying my work without merging, I can use
+	$ git branch -d bookdumb
+instead. There is a lot to the whole 'git' thing. I suggest reading the "Git User Manual" from kernel.org.
+
+If you want to check back in time, to a certain 'release' of a project, you can set tags as you go, and
+refer back to them whenever you want. Tags are usually labelled in versions, such as V2.0.1 or 
+simply 3.2.3. To access and create tags, use
+	$ git tag
+You can then checkout these versions, as opposed to different branches. The branches you create have a 
+"head", which is the version of the project that your branch jumps off of. 
+
+You might be asked what commit you are working from during development. This is really good information
+to have on hand. In this case, you can use the git show command:
+	$ git show
+This will print out the commit SHA, author, comment, and the differences in that commit. 
+
+Sometimes you want to simply visualize all the different changes over time, instead of working with
+git internally. To do that, you use:
+	$ gitk
+This is a visual git program that runs with KDE (or GTK, not sure)
+
+Now I've made a bunch of changes to the repo, and I want to commit these changes to the branch, and 
+suggest to the owner that we merge my branch with the Master branch. First, I add the files that I've
+changed:
+	$ git add myfile.txt
+Or
+	$ git add --all
+Now I can commit, with a message. This is recommended so people know what's been changed, at a glance. 
+	$ git commit -m "Initial commit uploaded all files."
+You can bypass the git add command by automatically adding files that have changed with:
+	$ git commit -a -m "Initial commit"
+The reason we need to do all this is because the repository is handled, by git, in a way that you have
+local uncommitted files, local committed files, and shared committed files. The git add command adds
+files to the "commit queue" if you will, those files will be commited. Then you actually locally commit
+the files, and your local repository will permanently reflect these changes. This is actually great,
+because it means if you do not want to keep the changes, you simply don't commit the files. 
+You can do this two ways, the first is probably the simplest: 
+	$ git checkout -- .				Remove all unstaged changes
+This is done with:
+	$ git clean -nd			Preview changes
+	$ git clean --hard		Remove all uncommitted (staged and unstaged) files
+	$ git clean -fd			Remove untracked files and directories
+On the other hand, when you want to update your remote repo (like on github) we run:
+	$ git push -u origin master
+In all likelihood, you'll want to work outside of the main branch, and rarely will you actually push
+directly to it. At least, for projects you are doing with other people. Instead, you create a pull
+request, and then you merge the pull request. The pull request consists of your branch that you'd
+like to merge into the master, and it lets people comment on the commits you made to that branch and
+make commits of their own so that you can all verify that it's good and safe to merge. The command
+exists in git as "git request-pull", but this is different from the GitHub pull request detailed here. 
+
+One really important aspect of git is the concept of the "head" and the "tip of the branch". These come
+up quite often, and might be a bit confusing at first. The HEAD (as it is properly called) is the current
+branch you are working in. If there are multiple branches in a project, and you check one out, the HEAD
+points to the branch you're working on. Both branches, tags, and other "commit objects" have a head,
+but the HEAD (all caps) is the current one.
+
+So if you don't want to push to the master branch, what -do- you do? You merge a branch with the master branch,
+on the local level, and you create a pull request when working specifically in github between repositories and
+forks. The right way to merge a branch with master is to go to the branch (git checkout branchname) and merge
+with master.
+	$ git merge master
+This will show any conflicts between the branches. Conflicts occur when the master branch and the working branch
+have both changed the same part of the same file in different ways. I think. In any case, resolve any conflicts,
+and the working branch will have been merged with master. Then you merge that branch into master. 
+	$ git merge branchname
+And this will not have any conflicts, just contributions from the branch. 
+
+The tip of a branch implies that you are at the latest commit in a branch. You can see what commit you
+are working in by using
+	$ git show
+And you can get look at the entire commit history for a given branch with
+	$ git log
+This is a very helpful command, and being "at the tip of master" means you are working on the most up
+to date version of the repository. 
+
+If you want to see what tag you're in, you can use
+	$ git describe
+Or 
+	$ git describe --tags
+
+To show only the last n commits (say, 4) you can use a flag -n, for example:
+	$ git log -4
+This shows the last 4 commits. You can also show the differences made by each commit by using the -p
+flag:
+	$ git log -p -2
+This command will show the last two commits and the changes associated with them. 
+
+Finally, software is typically released as a .tar.gz file, which is a zip format. To make a release using
+one of the versions of your project as a .tar.gz, you can run:
+	$ git archive -o booksmart1.5.7.tar.gz master
+or
+	$ git archive -o booksmart1.5.7.tar.gz --prefix=booksmart/ master
+Which will put all the files in another folder called "booksmart" which acts like the big owner of
+everything. Other good things to do are to make change logs, which show how the project has changed.
+
+It's important to be able to understand what git is saying every time you look back at different files. This
+is actually done not through git, but through diff. You can run diff from the terminal on any two files. It's
+really important to be able to understand it. Let's see an easy example. 
+
+text1.txt:
+1	line1
+2	line2			(Line numbers added)
+3	line3
+
+text2.txt:
+1	line2
+2	line3
+3	new line
+
+Now we look at the differences between these files, and we can do this in two ways. The git way is typical,
+and is done with the -u (unified) flag. 
+	$ diff -u text1.txt text2.txt
+	
+--- text1.txt	2017-08-31 00:14:49.050912240 -0400
++++ text2.txt	2017-08-31 00:15:17.930930737 -0400
+@@ -1,3 +1,3 @@
+-line1
+ line2
+ line3
++new line
+
+This output seems a bit strange, but it's really not bad. The "---" means the original file, and the "+++"
+means the new version of the file. The numbers in the @@ symbols are line numbers for where the context
+starts and ends. Here, @@ -1,3 +1,3 @@ means the original's context starts at line 1 and is 3 lines long, and
+the changed file also starts at line 1 and is 3 lines long. 
+
+Then you have a description of the file with - marks for lines that were deleted and + for lines that
+were added. Other options for git include -c (context mode) which is similar to unified (-u) mode except
+it will show both files with their respective changes. Context mode is the standard for showing changing
+in source code, for the record. 
+
+Now, the output of diff is actually not the full file (that would be a bit much), it is just a few lines
+to give context (hence context mode) which is why, although the two files above started at line 1, longer
+files can start showing differences at any point. Maybe there's a change at line 30, and so it shows
+@@ -25,12 +25,11 @@ because we start at line 25 and look until line 37, or 36 for the new file. This should 
+really help deciphering the output of software changes from git. 
+
+Summary:
+	-Make a new repo-
+	git init		Initialize the local directory as a git repository
+	git clone https://...	Clone a repository
+	git pull origin master	Update a repository
+	git remote add origin https://...	Set up a remote repository (e.g. a github repo) to be updated
+	-Where am I-
+	git log			Show all commits or e.g. the last five with -5, with changes with -p
+	git log -p myfile	Show the log for a specific file
+	git log --follow -p -- myfile	Show the entire history of a file (myfile)
+	git describe	Show current tag, sometimes with --tags
+	git show		Show the current commit
+	git tag			List the tags
+	git branch		List the branches, highlights the branch you're in
+	git status		Give information on tracked files
+	git diff		Give information on what has changed, details of the changes in file
+				No arguments means unstaged changes
+	git diff --staged	Give information on staged changes
+	git checkout master	Get back to the tip of Master
+	-Work with branches-
+	git branch myname	Creates a branch called myname 
+	git branch -b myname	Creates a branch and checks it out
+	git branch -d myname	Delete a branch, if it has been merged
+	git branch -D myname	Delete a branch, no matter what
+	-Commits and pulls-
+	git add myfile.txt		Add a file to the commit queue
+	git add --all			Add all files to the commit queue
+	git commit -m "Hello"		Commit with message "Hello"
+	git commit -a -m "Hello"	Commit all changed files (add them to the queue)
+	git checkout -- .		Clear unstaged changes
+	git clean -nd			Preview changes when cleaning
+	git clean --hard		Clean all staged and unstaged changes
+	git clean -fd			Remove untracked files and directories
+	git rm myfile.txt		Stage a file removal
+	git rm --cached myfile.txt	Remove a file from the staging, untrack
+	git mv oldname.txt newname.txt	Rename a file so that git knows where it is
+	-Visual GIT-
+	gitk
+	gitk filename
+
+Again, more information on Git can be easily found at www.kernel.org/pub/software/scm/git/user-manual.html
+Happy git-ing.

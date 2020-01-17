@@ -1,0 +1,145 @@
+TMUX is a terminal multiplexer, which means you can run multiple sessions at once without having to resort to new
+terminal windows and tabs. It's better than that, however - the ability to manage sessions means you can keep
+many more sessions running than you're actually using, and with tmux you can send commands through to different
+sessions, among other helpful features. 
+
+Some terminology is helpful:
+    session         A "pseudo" terminal which can own one or more windows
+    window          A full screen view, can contain one or more panes
+    pane            A view within a window, e.g. when you split the screen into two panes
+    escape key      Ctrl+b (variously called C-b, ^-b, Ctrl+B, etc), used to send commands to tmux itself
+    attach/detach   Sessions are attached to windows, and windows can detach from sessions, keeping them running
+
+The hierarchy is something like this:
+	Session -> Windows -> Panes
+Sessions separate workspaces, so you can keep a session for different projects. A window is within a session, and
+it can display panes, which have terminals. Windows and panes are similar, the major difference is sessions vs
+windows. 
+
+####################
+--- Introduction ---
+####################
+
+To start up, run:
+    $ tmux
+It should provide a fresh session ready to go. The magic of tmux is of course you can create new sessions, either
+from outside tmux or from within tmux. For example, let's say you want to get out of tmux but keep the session
+alive. You want to -detach- from the session, which can be done with <C-b d>. Then you're spit back out into your
+original terminal. But wait, it says "detached", so it's still running. To verify, use:
+    $ tmux list-windows
+Or for all windows and compressed info,
+    $ tmux list-windows -a
+We'll get to this more soon, but you can similarly list the sessions:
+    $ tmux ls [-a]
+Now you can get back to your session with
+    $ tmux attach
+If you've named a session (which won't show up in list-windows) you can specifically attach to that target
+session with
+    $ tmux attach -t [session name]
+
+To start a new session in tmux you can use the new command:
+    $ tmux new
+This will create a new session and will open it in the window.
+
+So maybe you want to run tmux commands from within a tmux session. Can you? Of course, just run them in the
+terminal like you would outside of a tmux session. Alternatively, you can execute commands using:
+    C-b :
+This will bring up a command prompt in the status bar, where you can also enter commands like list-windows.
+
+You may want to have tmux customized on startup (I'd be shocked if you didn't). For this, create a .tmux.conf
+file in your home directory. There are plenty of tutorials on .tmux.conf files.
+
+To kill a session, use the mysteriously named kill-session command
+    $ tmux kill-session [-t <session name>]
+To stop tmux from running, use
+    $ exit
+From within a session, or use a key binding (see below). 
+
+#######################
+--- Using Sesssions ---
+#######################
+There are plenty of key bindings ready to go for using tmux. You can customize these, and I'd recommend it
+because some of the defaults are clunky and hard to remember. Here we'll assume the defaults anyway. Here are
+some useful ones, all prefaced by the 'preface' or escape key, C-b:
+    ?       List all key bindings
+    :       Enter tmux command prompt
+    d       Detach (as seen above)
+    &       Kill window (with warning) - This is equivalent to exiting tmux and deleting all the sessions
+    $       Rename session
+    ,       Rename window
+    s       List sessions
+    w       List windows
+    c       Create a new window
+    0-9     Select windows 0 to 9
+    i       Display information about the current window
+    n       Change to next window
+    p       Change to previous window
+    o       Select next pane in current window
+    q       Briefly display pane indexes
+    x       Kill the current pane
+    "       Split screen horizontally (top-bottom)
+    %       Split screen vertically (left-right)
+    left,right,up,down
+            Change to pane in direction of arrow
+    [       Enter 'copy mode', let's you scroll up and down, view history
+    f       Search for text in window
+
+With all this being said, let's clarify what's what. 
+
+When you start tmux, it starts a server on your local machine. Then it automatically has a client (your terminal)
+access a newly created window (called e.g. bash) with a new session (called 0 for the first session). If you
+list windows now, you get:
+    0: bash* (1 panes) [190x23] [layout b4bd,190x23,0,0,0] @0 (active)
+Where bash* indicates the name of the window (bash) and the fact that it is active (the *). We're not shown any
+session information, because we only asked to list the windows. 
+
+To list the sessions, use:
+    $ tmux ls
+Which gives, for example:
+    0: 1 windows (created Mon Nov 11 14:36:16 2019) [190x23] (attached)
+Where the above was run from within the tmux session, and
+    0: 1 windows (created Mon Nov 11 14:36:35 2019) [190x23]
+Where the command was run from outside tmux (after detaching). Here, the 0 refers to the name of the session. 
+
+You can start a session with a name when starting up tmux using the -s flag,
+    $ tmux new -s testsesh
+(Or C-b :new -s testsesh)
+Then when you run ls, you get:
+    testsesh: 1 windows (created Mon Nov 11 14:39:38 2019) [190x23]
+Where testsesh is of course our session. 
+
+To kill a session, you can either run kill-session from the command line, or
+    C-b :kill-session
+When you kill the last session, the tmux server will stop. 
+
+One useful thing you can do is execute commands from outside tmux on sessions running within tmux. This is useful
+for working over ssh and testing things out without needing to go in and do stuff. This can be done by sending
+actual keys to the session with send_keys (or just send).
+    $ tmux send -t testsesh 'echo "it works!"' ENTER
+The ENTER key is important, because this is simply key press emulation. 
+
+--- Addressing ---
+Each session is given a name, like 'testsesh'. Within the session you have windows, and within the windows you
+have panes. To address a session 'testsesh' with a window numbered 1, and pane 0, you can use:
+	testsesh:1.0
+Typically, however, you can switch windows like switching buffers in vim. Either use C-b [1234567890] for the
+window number, or use C-b n and C-b p for the next and previous windows. 
+
+--- Manipulating Panes ---
+It's common to want to move your panes around in tmux. Maybe you want to bring in a window as a pane, or you want
+your top pane and bottom pane to switch (maybe you accidentally brought the pane in above but you wanted it
+below). Here are some commands to help with this.
+	:join-pane -t [session]:<window>		Bring window <window> in as a pane. Note the ':' !!
+	+				Break the current pane out of the current window
+	:break-pane 	Break the current pane out of the current window
+	x				Remove pane/window (with confirmation)
+	{				Swap panes up/down (see swap-pane for more options)
+
+--- Changing the Default Directory ---
+You can attach a session using a default directory with -c. To do this from within the session, you can use:
+	attach-session -t . -c /path/to/new/directory
+Or if you're in the right directory as it is, use:
+	attach-session -t . -c "#{pane_current_path}"
+Which is verbatim. 
+
+
