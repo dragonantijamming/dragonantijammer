@@ -162,7 +162,7 @@ from dragonradio import Channel, Channels, MCS, TXParams, TXParamsVector
 #   NOTE: Should be timestampRegression()?
 #   timetampRegressionNoSkew(echoed,master)
 #   getRadioLogPath()
-#   snapshotLogger()    ( Asynchronous )
+#   snapshotLogger()    ( asyncio coroutine )
 
 
 # ================================================== #
@@ -312,9 +312,182 @@ async def packet_catcher():
 async def example():
     await asyncio.gather(coroutine1(),coroutine2(),coroutine3())
 # Much better.
+
 # =================================== #
+### DRAGONRADIO ESSENTIALS ###
+
+## A Simple Example Setup Script ##
+
+# What is required in order to run the radio? How can we make a minimal example? 
+
+# The radio has a large number of configuration parameters, relating to PHY, MAC, and
+# network parameters. These parameters can be specified as command-line arguments. They
+# are accepted and put into a Conig object (dragon.radio.Config) using the python argparse
+# module [https://docs.python.org/3.5/library/argparse.html]. 
+
+# Logging through the python logging module [https://docs.python.org/3.5/library/logging.html]
+# can be initialized, and then a Radio object (dragon.radio.Radio) is initialized using 
+# the Config object (see above, where this process was outlined in detail).
+
+# The MAC is configured next, which happens through the Radio object. First the number of
+# nodes is used to add network nodes to the Radio's Net object, then the specified MAC
+# protocol (ALOHA or the default simple MAC) is configured. 
+
+# Last, we run an asyncio loop, or start an IPython session. And that's all!
+
+# Let's do this in a simple script. 
+def main():
+    config = dragon.radio.Config() # Config object from dragon.radio
+    # Create argument parser object
+    parser = argparse.ArgumentParser(description='Run dragonradio.',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    config.addArguments(parser) # Add parser to Config object
+
+    # Let's add an argument for the number of nodes
+    parser.add_argument('-n', action='store', type=int, dest='num_nodes',default=2,
+        help='set number of nodes in network')
+    # And an argument for whether or not to use ALOHA MAC
+    parser.add_argument('--aloha',action='store_true',dest='aloha',
+        default=False,help='use slotted ALOHA MAC')
+    # And an argument for interactive mode (IPython mode)
+    parser.add_arguments('--interactive',action='store_true',dest='interactive',
+        default=False,help='enter interactive shell after radio is configured')
+    
+    # Now we need to try and parse our arguments. We'll put this in a try/except
+    # loop in case arguments are bad. The exception for this is SystemExit.
+    try:
+        parser.parse_args(namepsace=config)
+    except SystemExit as ex:
+        return ex.code
+    
+    # Next we're going to set up logging. First we use the logging module's basicConfig method.
+    logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
+        level=config.loglevel)
+    # This just sets up the log message formatting with the specified log level
+
+    # Then share this with our Config object
+    if config.log_directory:
+        config.log_sources += ['log_recv_packets','log_sent_packets','log_events']
+    # TODO I haven't really looked into how the logging is working so this part is a bit vague
+
+    # Let's go ahead and create our Radio object. We initialize it with the Config object.
+    radio = dragon.radio.Radio(config)
+
+    # Setting up the MAC, first get the number of nodes, add them to the Radio object's Net object
+    for i in range(0, config.num_nodes):
+        radio.net.naddNode(i+1)
+    
+    # Choose either slotted ALOHA MAC or the default
+    if config.aloha:
+        radio.configureALOHA()
+    else:
+        radio.configureSimpleMACSchedule()
+    
+    # Finally we handle the program flow. Either IPython, or an asyncio loop
+    if config.interactive:
+        IPython.embed()
+    else:
+        loop = asyncio.get_event_loop() # Create an event loop
+        if config.log_snapshots != 0:
+            loop.create_task(radio.snapshotLogger()) # snapshotLogger is a coroutine
+        
+        for sig in [signal.SIGINT, signal.SIGTERM]: # Handle ctrl+C and ctrl+D
+            loop.add_signal_handler(sig, cancel_loop) # Simply stop the loop
+        
+        # NOTE You can add other tasks here
+        
+        # Try running forever, and close the loop before we exit
+        try:
+            loop.run_forever()
+        finally:
+            loop.close()
+    return 0
+
+# We have our main() function, let's run it if we're the program entry point
+if __name__=='__main__':
+    main()
+
+# This is everything, now the radio will run as expected. Clearly, most of the 'magic'
+# is hidden within dragon.radio.Radio. There is only one coroutine defined in the
+# Radio class, which is for snapshot logging. Nothing else uses the event loop in
+# our simple radio, though you can add more tasks. The radio really starts running
+# when the Radio object is constructed (see above description of the init) and the
+# MAC is configured.
+
+## Some Details of the Radio ##
+# The dragon.radio object is a help object which hides away much of the configuration
+# required for actually using the dragonradio library and bindings. It is very
+# complete, however, making it useful in all experiments with the radio. Let's
+# use it and the library itself to see what kind of control we have over the radio.
+
+# USRP INTERFACING #
+# The USRP object needs an address, and the antennas for transmit and receive need
+# to be specified. We have the following arguments:
+#   --addr
+#   --rx-antenna
+#   --tx-antenna
+
+# We can lump frequency and bandwidth settings in here, too, as these are typically
+# fixed during operation (normal radios, which we're simulating, can't frequency
+# hop). 
+# The center frequency, bandwidth, max bandiwdth, receive and transmit bandwidths, 
+# receive and transmit oversampling, and channel bandwidth can be set. For example,
+# we might set the bandwidth to 10 MHz centered at 1.3 GHz, and use 1 MHz channel
+# bandwidths. 
+# Arguments available are (all frequencies/bandwidths in Hz):
+#   -f, --frequency
+#   -b, --bandwidth
+#   --max-bandwidth
+#   --rx-bandwidth
+#   --tx-bandwidth
+#   --rx-oversample
+#   --tx-oversample
+#   --channel-bandwidth
+# There are also gain options, including transmit and receive gains, and soft transmit
+# gain. The arguments are (all gains in dB):
+#   -G, --tx-gain
+#   -R, --rx-gain
+#   -g, --soft-tx-gain
+#   --auto-soft-tx-gain
+#   --auto-soft-tx-gain-clip-frac
+
+# Since these are fixed parameters for a given communication system, we won't go into
+# the methods available or the interface exposed from the library. They should be
+# set as defaults in the Config object, or passed in as arguments when running. 
+# ! DON'T SET THESE DYNAMICALLY !
+
+# PHY LAYER #
+# The PHY parameters include the PHY system (flexframe, newflexframe, and ofdm),
+# packet size, number of channels, upsampling, modulation options, decoding options,
+# channelizer parameters, and synthesizer parameters.
+
+# Of particular interest here are the PHY, channelizer, and synthesizer parameters.
+# PHY layer protocols available:
+#   - Flexible framing (flexframe) [https://liquidsdr.org/doc/flexframe/]
+#   - Orthogonal Frequency-Division Multiplexing (OFDM) 
+#       [https://en.wikipedia.org/wiki/Orthogonal_frequency-division_multiplexing]
+# Channelizer algorithms available:
+#   - Frequency domain
+#   - Time domain
+#   - Overlap
+# Synthesizer algorithms available:
+#   - Frequency domain
+#   - Time domain
+#   - Multichannel
+
+# NOTE: A -channelizer- turns a broadband input into multiple narrowband outputs,
+# while a -synthesizer- merges multiple narrowband inputs to one broadband output.
+# at a signal-processing level, both of these require -filter banks-, but I'm 
+# still trying to determine why a synthesizer needs a filter bank.
+# See these links for an overview.
+#   [https://en.wikipedia.org/wiki/Channelization_(telecommunications)]
+#   [https://sci-hub.tw/https://doi.org/10.1016/B978-0-12-407682-2.00011-9]
+#   [https://ieeexplore.ieee.org/document/8104959]
+
+# MAC LAYER #
 
 
+# NET LAYER #
 
 
 
