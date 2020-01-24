@@ -325,7 +325,7 @@ async def example():
 
 # The radio has a large number of configuration parameters, relating to PHY, MAC, and
 # network parameters. These parameters can be specified as command-line arguments. They
-# are accepted and put into a Conig object (dragon.radio.Config) using the python argparse
+# are accepted and put into a Config object (dragon.radio.Config) using the python argparse
 # module [https://docs.python.org/3.5/library/argparse.html]. 
 
 # Logging through the python logging module [https://docs.python.org/3.5/library/logging.html]
@@ -733,7 +733,7 @@ alohamac.setTXProb()
 
 # The Controller class is relatively simple. It only requires a Net object and TXParams
 # for construction. 
-ctrlr = dragonradio.Controll(net, tx_params)
+ctrlr = dragonradio.Controller(net, tx_params)
 
 # It defines the following methods:
 ctrlr.pull(packet)          # Pull a packet from the network to be sent next over the radio
