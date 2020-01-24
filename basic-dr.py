@@ -6,6 +6,7 @@
 #   ZMQ     ZeroMQ, 0MQ, etc. Asynchronous messaging library, networking related
 #   CIL     CIRN Interaction Language (see SC2 competition, and [https://github.com/SpectrumCollaborationChallenge/CIL])
 #   gpsd    GPS (data ?), as in global position system
+#   MCS     Modulation and Coding Scheme
 
 
 ## IMPORTS ##
@@ -54,7 +55,7 @@ import dragon.radio # Dragon module Radio class, utility class
 # use e.g. 
 # from dragonradio import Estimators 
 
-# Of interest here is IQBuffer, which is defined in the following way
+# (Of special interest here is IQBuffer, which is defined in the following way:
 from dragonradio import IQBuffer
 # IQBuf     Class
 #   init()
@@ -64,8 +65,10 @@ from dragonradio import IQBuffer
 #   fs              Sample frequency
 #   delay           Signal delay
 #   data            IQ data
+# Other classes will be discussed as we get into the details later.)
 
 ## dragon MODULE ##
+# NOTE: We will be covering the dragon module extensively later in this doc.
 # Within the dragon module we have the following:
 #   dragon.channels         Channel plans (only one default method)
 #   dragon.collab           Something to do with sc2 contest?
@@ -79,7 +82,6 @@ from dragonradio import IQBuffer
 #   dragon.remote           Remote interface for contest?
 #   dragon.schedule         TDMA scheduling
 #   dragon.signal           Some signal processing utilities
-
 
 # The most important of these is dragon.radio, the main radio class and
 # supporting methods and classes. It uses these dragonradio library 
@@ -163,6 +165,7 @@ from dragonradio import Channel, Channels, MCS, TXParams, TXParamsVector
 #   timetampRegressionNoSkew(echoed,master)
 #   getRadioLogPath()
 #   snapshotLogger()    ( asyncio coroutine )
+# NOTE: We will discuss these methods in detail later.
 
 
 # ================================================== #
@@ -484,8 +487,266 @@ if __name__=='__main__':
 #   [https://sci-hub.tw/https://doi.org/10.1016/B978-0-12-407682-2.00011-9]
 #   [https://ieeexplore.ieee.org/document/8104959]
 
-# MAC LAYER #
+# The Radio object has self.phy which stores a dragonradio.FlexFrame, dragonradio.OFDM,
+# or dragonradio.NewFlexFrame object, depending on what PHY is selected.
+# EX.
+Radio.phy = dragonradio.OFDM(snapshot_collector,
+                             node_id,
+                             header_mcs,
+                             soft_header,
+                             soft_payload,
+                             min_packet_size,
+                             M,
+                             cp_len,
+                             taper_len,
+                             subcarriers)
 
+# The channelizer is stored as Radio.channelizer, and is one of:
+#   dragonradio.OverlapTDChannelizer    Overlap channelizer
+#   dragonradio.TDChannelizer           Time-domain channelizer
+#   dragonradio.FDChannelizer           Frequency-domain channelizer
+# While the synthesizer is stored as Radio.synthesizer, and is one of:
+#   dragonradio.TDSynthesizer
+#   dragonradio.FDSynthesizer
+#   dragonradio.MultichannelSynthesizer
+
+# The channelizers and synthesizers have similar arguments for their constructors.
+# EX.
+Radio.channelizer = dragonradio.TDChannelizer(Radio.phy,
+                                              Radio.usrp.rx_rate,
+                                              Channels([]),
+                                              config.num_demodulation_threads)
+Radio.synthesizer = dragonradio.TDSynthesizer(Radio.phy,
+                                              Radio.usrp.tx_rate,
+                                              Channels([]),
+                                              config.num_modulation_threads)
+
+# Let's take a look inside TDChannelizer and TDSynthesizer for concreteness. Their
+# defailts are found in the dragonradio C++ source in src/phy. The channelizers have 
+# the following methods available publicly:
+# (Channelizer base class)
+#   getRXRate()                 Get RX rate
+#   setRXRate()                 Set RX rate
+#   getChannels()               Get channels
+#   setChannels(Channels chs)   Set channels
+#   push(IQBuf buffer)          Add an IQ buffer to demodulate
+#   reconfigure()               Reconfigure for new RX parameters
+
+# There is also a public data member,
+#   RadioOut<Push> source       Demodulated packets
+# Where RadioOut<Push> expands to Port<Out, Push, std::shared_ptr<RadioPacket>>
+# and Port is a template class described as "A port attached to an Element" where
+# the Element implementation is used in the Net layer (see src/net/Element.hh). But
+# it's written in modern C++, so unless you're familiar with template programming and
+# smart pointers in C++ it might be a bit much to digest at first...
+
+# The channelizer and synthesizer work closely with the TUN/TAP interface. Specifically,
+# the channelizer outputs its demodulated data to the TAP, the synthesizer to the TUN
+# (the tunnel). A Channel is a simple data object which stores center frequency (shift 
+# from center) and bandwidth.
+
+# NOTE: On terminology: In TUN/TAP, "TAP" refers to Terminal Access Point, a system
+# which monitors local traffic on the network at the network layer. On the other
+# hand, there are filter taps, or more specifically FIR (Finite Impulse Response)
+# taps. These refer to the construction of the filter - a FIR filter uses the last N
+# data values to produce a new "filtered" output. For example, a moving-average which
+# averages every 5 data values, where the average is the filter output. Each of the
+# N inputs in time is called a "tap", so a filter that uses the 5 most recent values
+# to compute the output is a 5-tap filter. 
+
+#----------------
+# PRACTICE: Try writing a new channelizer which uses both time-division and frequency-
+# division, and which matches the Channelizer base class, implementing the necessary 
+# functions. Fill in any and all missing details by reading the python and C++ 
+# sources. Write it in Python. You can use the existing Radio and dragonradio classes.
+#----------------
+
+# QUESTION: What's the difference between channelization/synthesis and MAC scheduling?
+
+# The channelizer and synthesizer work closely with the network layer, through the 
+# Controller, which we haven't discussed yet. 
+
+# The Radio class has methods available for changing the channels dynamically. They are:
+#   configureDefaultChannels()      Uses the default channel plan (see dragon.channels)
+#   setChannels(channels)           Set current channels. Also configures RX/TX rates
+#   setSynthesizerTXChannel(channel)    Set synthesizer's transmission channel, creates
+#                                   appropriate filter and sets USRP settings
+#   setTXChannel(channel_idx)       Set transmission channel by setting USRP frequency and
+#                                   configuring synthesizer for single channel
+#   genChannelizerTaps(channel)     Generate channelizer filter taps for given channel
+#   genSynthesizerTaps(channel)     Generate synthesizer filter taps for given channel
+
+# Recall that the Channel object (dragonradio.Channel) simply stores the center frequency
+# (offset) and bandwidth of the channel. In python, this is stored as a list.
+# Ex.
+channel = dragonradio.Channel(center_freq_offset, channel_bandwidth)
+# Some basic information required to create a channel plan:
+#   Total bandwidth
+#   Channel bandwidth
+#   Channel guard bandwidth (min space between channels)
+#   Edge guard bandwidth (min space from edges of our spectrum)
+
+# Here's the defaultChannelPlan method to get an idea of how this is done:
+def defaultChannelPlan(bandwidth,cbw,cgbw=0,egbw=0,maximize_channel_guard_bandwidth=True):
+    n = 1 + int((bandiwdth-cbw-2*egbw)/(cbw+cgbw))
+    if n < 1:
+        raise Exception("No channels!")
+    if maximize_channel_guard_bandwidth and n > 1:
+        cgbw = (bandwidth-2*egbw-n*cbw)/(n-1)
+    return [Channel(egbw + i*(cbw+cgbw) + cbw/2. - bandwidth/2., cbw) for i in range(0,n)]
+# This results in n evenly spaced channels of bandwidth cbw (channel bandwidth) within the
+# band specified by bandwidth. Note that the center frequency offset is the only important
+# frequency, as center frequency is set by hardware, so all channel center frequencies are
+# normalized around 0. 
+
+# MAC LAYER #
+# Unlike the channelizer, synthesizer, AMC, ARQ, and network layer objects, the MAC layer
+# is initialized outside of the Radio object's init() constructor. The MAC is configured
+# by the user in the setup script, as detailed above. 
+
+# The methods involved are:
+# Configuring
+Radio.configureALOHA()
+Radio.configureTDMA(nslots)
+# Setting a channel
+Radio.setALOHAChannel(channel_idx)  # Note: idx = index
+# Scheduling
+Radio.installMACSchedule(sched)
+Radio.configureSimpleMACSchedule()
+
+# Some context is in order. The MAC protocol is shared across all the nodes in a network. 
+# Each node has its own Radio object, so the Radio will be configuring itself with the
+# knowledge that it is probably not the only Radio in the network. It will select its
+# channel if necessary, and/or it will use an assigned time slot if we're using TDMA. The
+# methods here then simply need to allow one node to find its place in the MAC schedule.
+
+# One of the key questions is obviously, who sets the schedule? And how does a node
+# know that it's time to transmit/receive? The answers are, a "master node" sets the schedule,
+# and a node in a TDMA schedule knows it's time to transmit by simply keeping track of
+# the time... I think.
+
+# Another important element is the MAC Controller, or simply the Controller. The Controller
+# is the bridge between the network layer and the MAC layer's transmission. When packets
+# are ready to be sent, the Controller is responsible for working with the MAC to send
+# them out. When packets are received, the Controller is responsible for piping those
+# packets to the network layer. 
+
+# Most of the interesting parts of the MAC layer are in dragonradio. We have the
+# following classes implemented:
+#   dragonradio.MAC 
+#     - dragonradio.SlottedMAC
+#         - dragonradio.TDMA 
+#         - dragonradio.SlottedALOHA
+#   dragonradio.Schedule 
+#   dragonradio.Controller 
+#     - dragonradio.DummyController
+#     - dragonradio.SmartController 
+
+# Every dragonradio.MAC must be initialized, and has several public methods available.
+# MAC constructor:
+mac = dragonradio.MAC(usrp,
+                      phy,
+                      controller,
+                      collector,      # (snapshot collector)
+                      channelizer,
+                      synthesizer)
+# Methods:
+mac.getChannelizer()    # Returns the channelizer
+mac.getSynthesizer()    # Returns the synthesizer
+mac.canTransmit()       # Returns TRUE if we're allowed to transmit (for TDMA)
+mac.reconfigure()       # Reconfigures the MAC after parameters change
+mac.stop()              # Stop processing packets
+
+# The SlottedMAC class defines several more functions and a data structure. 
+# SlottedMAC Constructor:
+smac = dragonradio.SlottedMAC(usrp,
+                              phy,
+                              controller,
+                              collector,        # (snapshot collector)
+                              channelizer,
+                              synthesizer.
+                              pin_rx_worker,    # | (for multithreading)
+                              pin_tx_worker,    # |
+                              slot_size,        # Length of single TDMA slot, including guard (sec)
+                              guard_size,       # Length of inter-slot guard (sec)
+                              slot_modulate_lead_time,  # Lead time for modulating slot data
+                              slot_send_lead_time)      # Lead time for sending slot data 
+# Methods (in addition to those inherited from dragonradio.MAC):
+smac.getSlotSize()
+smac.setSlotSize(t)
+smac.getGuardSize()
+smac.setGuardSize(t)
+smac.getSlotModulateLeadTime()
+smac.setSlotModulateLeadTime(t)
+smac.getSlotSendLeadTime()
+smac.setSlotSendLeadTime(t)
+smac.getSchedule()
+smac.setSchedule(Schedule sched)
+smac.setSchedule(Schedule::sched_type sched)
+smac.getLoad()  # Get current load
+smac.popLoad()  # Get current load, reset load counters
+
+# Then there's the Load structure defined within SlottedMAC, which stores the start
+# of load measurement period, end of load measurement period, and load per channel measured
+# in number of samples.
+
+# The TDMA MAC implements the SlottedMAC. Its constructor is the same, but it also takes
+# the number of slots.
+tdmamac = dragonradio.SlottedMAC(usrp,
+                              phy,
+                              controller,
+                              collector,        # (snapshot collector)
+                              channelizer,
+                              synthesizer.
+                              pin_rx_worker,    # | (for multithreading)
+                              pin_tx_worker,    # |
+                              slot_size,        # Length of single TDMA slot, including guard (sec)
+                              guard_size,       # Length of inter-slot guard (sec)
+                              slot_modulate_lead_time,  # Lead time for modulating slot data
+                              slot_send_lead_time,      # Lead time for sending slot data 
+                              nslots)
+# It also defines one more function,
+tdmamac.getNSlots()     # Returns number of TDMA slots
+# The TDMA schedule is implemented as a bool vector which is TRUE when the node is
+# allowed to transmit. 
+
+# The Slotted ALOHA MAC also implements SlottedMAC, taking the additional p parameter in
+# its constructor, the probability of transmission.
+alohamac = dragonradio.SlottedMAC(usrp,
+                              phy,
+                              controller,
+                              collector,        # (snapshot collector)
+                              channelizer,
+                              synthesizer.
+                              pin_rx_worker,    # | (for multithreading)
+                              pin_tx_worker,    # |
+                              slot_size,        # Length of single TDMA slot, including guard (sec)
+                              guard_size,       # Length of inter-slot guard (sec)
+                              slot_modulate_lead_time,  # Lead time for modulating slot data
+                              slot_send_lead_time,      # Lead time for sending slot data 
+                              p)    # Probability of transmission
+# It defines several more set/get functions,
+alohamac.getSlotIndex()
+alohamac.setSlotIndex()
+alohamac.getTXProb()
+alohamac.setTXProb()
+
+# The Controller class is relatively simple. It only requires a Net object and TXParams
+# for construction. 
+ctrlr = dragonradio.Controll(net, tx_params)
+
+# It defines the following methods:
+ctrlr.pull(packet)          # Pull a packet from the network to be sent next over the radio
+ctrlr.received(packet)      # Process demodulated packets
+ctrlr.disconnect()          # Called when network output port is disconnected
+ctrlr.missed(packet)        # Notify controller that a packet missed its slot
+ctrlr.transmitted(Synthesizer::Slot slot) # Notify controller that slot has been transmitted
+# The pull() and received() methods are called automatically through the ports.
+
+# There are two types of controllers available, DummyController and SmartController. 
+# DummyController just passes packets through, while SmartController implements ARQ
+# (Automatic Repeat Request). SmartController is a much more substantial class, so the
+# source is the best way to learn more about it, and the methods it has available.
 
 # NET LAYER #
 
