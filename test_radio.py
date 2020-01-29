@@ -14,6 +14,20 @@ import sys
 import dragonradio
 import dragon.radio
 
+import numpy as np
+
+async def cancel_tasks(loop):
+	tasks = [t for t in asyncio.Task.all_tasks() if t is not asyncio.Task.current_task()]
+	for task in tasks:
+		task.cancel()
+		await task
+
+	loop.stop()
+
+def cancel_loop():
+	loop = asyncio.get_event_loop()
+	loop.create_task(cancel_tasks(loop))
+
 def main():
 	config = dragon.radio.Config()
 	
@@ -53,7 +67,7 @@ def main():
 
 	# Configure MAC objects
 	nslots = 10
-	nchannels = len(radio.getChannels())
+	nchannels = len(radio.channels)
 	sched = np.array([1,2,3,1,2,3,1,2,3,1]) # nchannels x nslots array
 	schedarray = []
 	for i in range(0,nchannels):
@@ -79,12 +93,12 @@ def main():
 		loop = asyncio.get_event_loop()
 
 		if config.log_snapshots != 0:
-		loop.create_task(radio.snapshotLogger())
+			loop.create_task(radio.snapshotLogger())
 
-		if config.cycle_tx_gain is not None:
-			loop.create_task(cycle_tx_gain(radio,
-				config.cycle_tx_gain_period,
-				cycle_algorithm(config.cycle_tx_gain)))
+#		if config.cycle_tx_gain is not None:
+#			loop.create_task(cycle_tx_gain(radio,
+#				config.cycle_tx_gain_period,
+#				cycle_algorithm(config.cycle_tx_gain)))
 
 		for sig in [signal.SIGINT, signal.SIGTERM]:
 			loop.add_signal_handler(sig, cancel_loop)
