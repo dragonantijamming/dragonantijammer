@@ -59,3 +59,13 @@ eventset.value
 
 # 
 
+#=====================================
+# CREATING SCHEDULES
+#
+# For a MAC schedule, we must specify e.g. a time slot (TDMA) and a channel to transmit on. The
+# Schedule is implemented as a bool array, with one dimension representing time slots, and the
+# other representing channel slots. The value is TRUE when -this- node is allowed to transmit. 
+# Setting the schedule, then, seems to only involve setting -our- schedule, and the other slots
+# are left unspecified by us. A master node is supposed to be repsonsible for controlling the 
+# organization of the schedule across nodes, I believe. 
+
