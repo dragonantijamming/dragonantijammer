@@ -66,6 +66,14 @@ def main():
 	radio = dragon.radio.Radio(config)
 
 	# Configure MAC objects
+	# The schedule will be nchannels x nslots, so each row represents
+	# the schedule for a channel, and each column represents the time slots.
+	# Ex. For 10 channels, 3 nodes, 4 time slots
+	#        channels ->
+	#  time  [1,,,2,,,3,,,]
+	#  slots [1,,,2,,,3,,,]
+	#    |   [1,,,2,,,3,,,]
+	#    V   [1,,,2,,,3,,,]
 	nslots = 10
 	nchannels = len(radio.channels)
 	sched = np.array([1,2,3,1,2,3,1,2,3,1]) # nchannels x nslots array
