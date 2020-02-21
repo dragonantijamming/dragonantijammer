@@ -69,3 +69,39 @@ eventset.value
 # are left unspecified by us. A master node is supposed to be repsonsible for controlling the 
 # organization of the schedule across nodes, I believe. 
 
+
+
+# Finding a bug in the scheduling: floating point error (typ. division by zero)
+# Divisions and moduluses (/,%,fmod()): 
+#   TDSynthesizer.cc:152
+#   TDSynthesizer.cc:184
+#   TDChannelizer.cc:211-12
+#   TDMA.cc:169
+#   TDMA.cc:170
+#   TDMA.cc:173
+#   TDMA.cc:175
+#   TDMA.cc:184
+#   TDMA.cc:186
+
+# EXAMPLE SCHEDULE:
+# Run the radio as:
+#   ./dragonradio python/ecet680[..] -i 2 --slot-size=0.5 -f 1.31e9 --interactive
+# Note that we're setting slot size to 0.5s (500ms) between time slots
+#
+# Now we want to set a schedule. We will have channel 1 and 2 in use every other time
+# slot, with node 1 on channel 1 and node 2 on channel 2. To specify that no node should
+# be allowed to use a slot, enter a node id of 0.
+sched = np.array([[1,2],[0,0]]) 
+# => [[1,2],
+#     [0,0]]
+# This translates to:
+#              channel 1   channel 2
+# timeslot 1    node 1       node 2
+# timeslot 2     0            0
+
+# You'll know you messed up the schedule if (a) iperf transmission shows nothing, or
+# (b) a Floating point exception (core dumped) error occurs, indicating a divide-by-zero
+# error somewhere.
+
+
+
