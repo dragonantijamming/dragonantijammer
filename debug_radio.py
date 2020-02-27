@@ -75,22 +75,32 @@ def main():
 	#  slots [1,,,2,,,3,,,]
 	#    |   [1,,,2,,,3,,,]
 	#    V   [1,,,2,,,3,,,]
-	nslots = 10
-	nchannels = len(radio.channels)
-	sched = np.array([1,2,3,1,2,3,1,2,3,1]) # nchannels x nslots array
-	schedarray = []
-	for i in range(0,nchannels):
-		schedarray.append(sched)
+	#nslots = 10
+	#nchannels = len(radio.channels)
+	#sched = np.array([1,2,3,1,2,3,1,2,3,1]) # nchannels x nslots array
+	#schedarray = []
+	#for i in range(0,nchannels):
+	#	schedarray.append(sched)
 	# schedarray is now a list of arrays: [ array([1,2,3...]), array([1,2,3...]), ... ]
 
-	schedstack = np.vstack(sched) # Turn the list of arrays into a vertical stack of the arrays
+	#schedstack = np.vstack(sched) # Turn the list of arrays into a vertical stack of the arrays
 	# => array([ [1,2,3...],
 	#			 [1,2,3...],
 	#			 ...
 	#			 [1,2,3...] ])
 
 	# This calls configureTDMA() and installs the TDMA schedule
-	radio.installMACSchedule(schedstack)
+	#radio.installMACSchedule(schedstack)
+# Setting up the MAC, first get the number of nodes, add them to the Radio object's Net 	object	
+	for i in range(0, config.num_nodes):
+		radio.net.naddNode(i+1)
+
+	# Choose either slotted ALOHA MAC or the default
+	if config.aloha:
+		radio.configureALOHA()
+	else:
+		radio.configureSimpleMACSchedule()
+
 
 	#
 	# Start IPython shell if we are in interactive mode. Otherwise, run the
