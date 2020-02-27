@@ -93,7 +93,7 @@ def main():
 	#radio.installMACSchedule(schedstack)
 # Setting up the MAC, first get the number of nodes, add them to the Radio object's Net 	object	
 	for i in range(0, config.num_nodes):
-		radio.net.naddNode(i+1)
+		radio.net.addNode(i+1)
 
 	# Choose either slotted ALOHA MAC or the default
 	if config.aloha:
