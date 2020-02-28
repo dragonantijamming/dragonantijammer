@@ -69,39 +69,30 @@ eventset.value
 # are left unspecified by us. A master node is supposed to be repsonsible for controlling the 
 # organization of the schedule across nodes, I believe. 
 
+# Run the radio in FDMA mode by specifying --fdma in the command line (otherwise no channels are
+# created!). Some useful things to check:
 
+# Schedules:
+radio.my_schedule           # TDMA schedule, with rows for each channel
 
-# Finding a bug in the scheduling: floating point error (typ. division by zero)
-# Divisions and moduluses (/,%,fmod()): 
-#   TDSynthesizer.cc:152
-#   TDSynthesizer.cc:184
-#   TDChannelizer.cc:211-12
-#   TDMA.cc:169
-#   TDMA.cc:170
-#   TDMA.cc:173
-#   TDMA.cc:175
-#   TDMA.cc:184
-#   TDMA.cc:186
+# Channels:
+radio.channels              # List of channels showing fc and cbw
+radio.channelizer_channels  # Channels object, mostly the same as radio.channels
+len(radio.channels)         # Easy way to get number of channels
+radio.channel_bandwidth     # Channel bandwidth
 
-# EXAMPLE SCHEDULE:
-# Run the radio as:
-#   ./dragonradio python/ecet680[..] -i 2 --slot-size=0.5 -f 1.31e9 --interactive
-# Note that we're setting slot size to 0.5s (500ms) between time slots
-#
-# Now we want to set a schedule. We will have channel 1 and 2 in use every other time
-# slot, with node 1 on channel 1 and node 2 on channel 2. To specify that no node should
-# be allowed to use a slot, enter a node id of 0.
-sched = np.array([[1,2],[0,0]]) 
-# => [[1,2],
-#     [0,0]]
-# This translates to:
-#              channel 1   channel 2
-# timeslot 1    node 1       node 2
-# timeslot 2     0            0
+# To create a schedule:
+# Format is np.array of node ids representing time slots for each channel
+# [[1,2,1,2],       <- Channel 1 time slot schedule
+#  [0,0,0,0],       <- Channel 2 time slot schedule (0 indicates nobody transmits)
+#  [2,1,2,1]]       <- Channel 3 time slot schedule
+# Note that -i is the node_id argument when running the radio, and node id's are always ints
+# Pure FDMA with 2 nodes on 4 channels:
+sched = np.array([[1],[0],[2],[0]]) # Node 1 transmits on channel 1, node 2 on channel 3
+radio.installMACSchedule(sched)     # Install the schedule for this node
 
-# You'll know you messed up the schedule if (a) iperf transmission shows nothing, or
-# (b) a Floating point exception (core dumped) error occurs, indicating a divide-by-zero
-# error somewhere.
-
+# Try it out by e.g. running an iperf session
+# [1] !iperf -ui 1 -c 10.10.10.1 -b 200k -t 10
+# Check the FFT on another node to see the magic happen.
 
 
