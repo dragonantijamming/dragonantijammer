@@ -96,3 +96,16 @@ radio.installMACSchedule(sched)     # Install the schedule for this node
 # Check the FFT on another node to see the magic happen.
 
 
+#####
+# Sending a Schedule
+# We have several functions in controller.py which call the something like 
+# sendSchedule() in internal.py. This, in turn, has a decorator, the send() 
+# function, in protobuf.py. This function then uses a TCPProtoClient (or Server?) 
+# which has a send() function of its own, but this simply calls sendMessage() 
+# in the TCPProto class. This finally serializes the data, and uses a writer 
+# object (supplied) to output the data. The writer object comes from the Client 
+# or Server, when its open() method is called. 
+#
+# 
+
+

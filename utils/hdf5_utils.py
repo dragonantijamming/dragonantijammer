@@ -66,7 +66,7 @@ def print_send_format(f):
     Creates a csv file containing the datafield data 
 
     Parameters:
-        datag   h5py File object
+        datag   h5py data structure (e.g. f['event'] )
         csvname Name of csv file to write (will overwrite)
 """
 def export_datafield(datag,csvname):
